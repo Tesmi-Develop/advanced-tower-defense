@@ -162,6 +162,8 @@ export const GetPointOnCircle2D = (angle: number, radius: number) => {
 	return new Vector2(x, y);
 }
 
+export const IsNaN = (number: number) => number !== number;
+
 export const GetPointInCircle = (angle: number, raduis: number) => {
     const x = math.sin(math.rad(angle)) * raduis;
     const z = math.cos(math.rad(angle)) * raduis;
