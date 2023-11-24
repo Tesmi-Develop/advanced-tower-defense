@@ -1,0 +1,3 @@
+interface ProfileData {
+    Statistics: {}
+}

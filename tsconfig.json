@@ -28,7 +28,13 @@
 			{
 				"transform": "rbxts-transformer-flamework",
 				"obfuscation": false
-			}
+			},
+			{ 
+				"transform": "rbxts-transformer-keys" 
+			},
+			{
+				"transform": "rbxts-transformer-t-new",
+			},
 		]
 	}
 }

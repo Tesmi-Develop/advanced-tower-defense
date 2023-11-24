@@ -1,0 +1,2 @@
+interface PlayerGui extends Instance {
+}

@@ -1,0 +1,2 @@
+interface Workspace extends Instance {
+}

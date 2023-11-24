@@ -1,0 +1,2 @@
+interface BackpackGui extends SurfaceGui {
+}

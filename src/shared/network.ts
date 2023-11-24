@@ -1,12 +1,19 @@
 import { Networking } from "@flamework/networking";
+import { BaseConfig } from "./visualEffects/BaseEffect";
 
-interface ClientToServerEvents {}
 
-interface ServerToClientEvents {}
+interface ServerEvents {
+}
 
-interface ClientToServerFunctions {}
+interface ClientEvents {
+    CastVFX(Name: string, Config: BaseConfig): void;
+}
 
-interface ServerToClientFunctions {}
+interface ServerFunctions {
+    
+}
 
-export const GlobalEvents = Networking.createEvent<ClientToServerEvents, ServerToClientEvents>();
-export const GlobalFunctions = Networking.createFunction<ClientToServerFunctions, ServerToClientFunctions>();
+interface ClientFunctions {}
+
+export const GlobalEvents = Networking.createEvent<ServerEvents, ClientEvents>();
+export const GlobalFunctions = Networking.createFunction<ServerFunctions, ClientFunctions>();
