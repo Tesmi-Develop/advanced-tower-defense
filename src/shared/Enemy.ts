@@ -58,8 +58,9 @@ export class Enemy {
             const centre2 = new Vector3(this.position.X, this.position.Y, node.Z);
             let centre = centre1;
 
-            print(math.round(this.rotation) === 0, math.round(this.rotation), 0)
-            if (math.round(this.rotation) === 0 || math.round(this.rotation) === -180) {
+            const roundedRotation = (math.round(this.rotation));
+
+            if ((roundedRotation < 45 && roundedRotation >= 0) || math.round(this.rotation) === -180) {
                 centre = centre2;
             }
 
