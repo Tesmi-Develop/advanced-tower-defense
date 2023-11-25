@@ -1,8 +1,9 @@
 import EasyTween from "@rbxts/easytween";
 import { RunService, Workspace } from "@rbxts/services";
-import { Spawn } from "./decorators/Methods/Spawn";
-import { IsNaN } from "./Utility/Utility";
+import { Spawn } from "../decorators/Methods/Spawn";
+import { IsNaN } from "../Utility/Utility";
 import BezierCurve from "@rbxts/bezier";
+import { ClientMethod, SharedClass, SharedMethod, SyncProperty } from "shared/SharedDecorators/SharedDecorators";
 
 interface IEnemyConfig {
     Walkspeed: number;
@@ -19,20 +20,34 @@ const createPart = (point: Vector3) => {
 	return part
 }
 
+@SharedClass()
 export class Enemy {
     private config: IEnemyConfig;
-    private nodes: Vector3[] = [];
     private moveVelocity = new Vector3(0, 0, 0);
+    private movingCancel?: Callback;
+
+    @SyncProperty()
+    private nodes: Vector3[] = [];
+
+    @SyncProperty()
     private position = new Vector3(0, 0, 0);
+
+    @SyncProperty()
     private rotation = 0;
+
+    @SyncProperty()
+    private nodeIndex = 0;
+
+    @SyncProperty()
     private lookCFrame = new CFrame();
+
+    @SyncProperty()
     private lookVector = new Vector3(0, 0, 0);
 
     constructor(config: IEnemyConfig) {
         this.config = config;
     }
 
-    @Spawn
     private visualizeEnemy() {
         const EnemyPart = new Instance('Part', Workspace);
         EnemyPart.Anchored = true;
@@ -47,7 +62,17 @@ export class Enemy {
         });
     }
 
+    @ClientMethod()
+    private syncPositionAndOrientation(position: Vector3, rotation: number) {
+        this.position = position;
+        this.setRotation(rotation);
+        print('sync position and rotation');
+    }
+
+    @SharedMethod()
     private moveTo(index: number) {
+        if (this.movingCancel) this.movingCancel();
+
         const thread = coroutine.running();
         const node = this.nodes[index];
         let distance = node.sub(this.position).Magnitude;
@@ -78,16 +103,18 @@ export class Enemy {
 
             tweenRotation.ListenToChange((cframe) => {
                 this.setRotation(cframe);
-            })
-
-            for(const i of $range(0, 1, 0.01)) {
-                const point = curve.calculate(i);
-                createPart(point);
-            }
+            });
 
             const connection = tween.ListenToReacheGoal(() => {
                 coroutine.resume(thread);
             });
+
+            this.movingCancel = () => {
+                pcall(() => task.cancel(thread));
+                connection.Disconnect();
+                tweenRotation.Destroy();
+                tween.Destroy();
+            }
 
             for(const i of $range(0, 1, 0.1)) {
                 const point = curve.calculate(i);
@@ -102,13 +129,22 @@ export class Enemy {
                 
                 coroutine.yield();
             }
+
             connection.Disconnect();
             tweenRotation.Destroy();
             tween.Destroy();
+            this.syncPositionAndOrientation(this.position, this.rotation);
+            this.movingCancel = undefined;
+
             return;
         }
         
         const tween = new EasyTween(this.position, new TweenInfo(distance / this.config.Walkspeed, Enum.EasingStyle.Linear));
+
+        this.movingCancel = () => {
+            pcall(() => task.cancel(thread));
+            tween.Destroy();
+        }
 
         tween.ListenToChange((point) => {
             this.position = point;
@@ -122,6 +158,8 @@ export class Enemy {
         tween.Set(node);
 
         coroutine.yield();
+        this.movingCancel = undefined;
+        this.syncPositionAndOrientation(this.position, this.rotation);
     }
 
     private setRotation(rotation: number | CFrame) {
@@ -167,6 +205,7 @@ export class Enemy {
         this.setRotation(CFrame.lookAt(this.position, nextNode));
         this.nodes.forEach((point, index) => {
             print(`Moving to node ${index + 1}`, point);
+            this.nodeIndex = index;
             this.moveTo(index);
         });
     }
@@ -183,6 +222,10 @@ export class Enemy {
         this.initNodes();
         this.initHeartbeat();
         this.initMoving();
+    }
+
+    public InitClient() {
         this.visualizeEnemy();
+        this.moveTo(this.nodeIndex);
     }
 }
