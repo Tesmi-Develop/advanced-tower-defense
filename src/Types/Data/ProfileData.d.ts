@@ -1,3 +1,5 @@
 interface ProfileData {
-    Statistics: {}
+    Statistics: {
+        Money: number;
+    }
 }

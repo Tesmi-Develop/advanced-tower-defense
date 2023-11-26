@@ -13,6 +13,7 @@ import { OnDataCreate, OnReplicaCreate, PlayerModuleDecorator } from "shared/dec
 import { LoadProfile } from "server/DataStore/LoadProfile";
 import Statistics from "shared/Config/Statistics";
 import { TemplateDynamicData } from "server/DataStore/Templates";
+import Collision from "shared/Collisions";
 
 const replicaPlayerDataToken = ReplicaService.NewClassToken("PlayerData");
 
@@ -263,7 +264,7 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
 				Profile: this.profile.Data,
 				Dynamic: dynamicData,
 			},
-			WriteLib: ReplicatedStorage.WaitForChild('TS').WaitForChild('WriteLibs').WaitForChild('PlayerData') as ModuleScript,
+			//WriteLib: ReplicatedStorage.WaitForChild('TS').WaitForChild('WriteLibs').WaitForChild('PlayerData') as ModuleScript,
 			Replication: this.instance,
 		});
 
@@ -275,14 +276,14 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
 			task.wait();
 			character.GetChildren().forEach((bodyPart) => {
 				if (!bodyPart.IsA("BasePart")) return;
-				bodyPart.CollisionGroup = "Players";
+				bodyPart.CollisionGroup = Collision.Player;
 			});
 		}));
 
 		if (this.instance.Character) {
 			this.instance.Character.GetChildren().forEach((bodyPart) => {
 				if (!bodyPart.IsA("BasePart")) return;
-				bodyPart.CollisionGroup = "Players";
+				bodyPart.CollisionGroup = Collision.Player;
 			});
 		}
 	}

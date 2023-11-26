@@ -3,7 +3,6 @@ import { Service, OnStart, OnInit } from "@flamework/core";
 import Signal from "@rbxts/rbx-better-signal";
 import { Players } from "@rbxts/services";
 import { PlayerComponent } from "server/components/PlayerComponent";
-import { Enemy } from "shared/Classes/Enemy";
 
 @Service({})
 export class PlayerService implements OnStart, OnInit {
@@ -27,7 +26,5 @@ export class PlayerService implements OnStart, OnInit {
     }
 
     onStart() {
-        const enemy = new Enemy({ Walkspeed: 6 });
-        enemy.Init();
     }
 }

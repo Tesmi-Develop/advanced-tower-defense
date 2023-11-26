@@ -3,13 +3,26 @@ import { RunService, Workspace } from "@rbxts/services";
 import { Spawn } from "../decorators/Methods/Spawn";
 import { IsNaN } from "../Utility/Utility";
 import BezierCurve from "@rbxts/bezier";
-import { ClientMethod, SharedClass, SharedMethod, SyncProperty } from "shared/SharedDecorators/SharedDecorators";
+import { ClientMethod, NonSyncProperty, SharedClass, SharedMethod } from "shared/SharedDecorators/SharedDecorators";
+import { OnlyClient } from "shared/decorators/Methods/OnlyClient";
+import Collision from "shared/Collisions";
+import Damageable from "./Damageable";
+import { Dependency } from "@flamework/core";
+import type { GameService } from "server/services/GameService";
+import type { EnemyComponent } from "client/components/EnemyComponent";
+import Maid from "@rbxts/maid";
+import { Components } from "@flamework/components";
 
 interface IEnemyConfig {
+    Name: string;
+    Health: number;
+    Model: Model;
+    WalkAnimation: Animation;
     Walkspeed: number;
 }
 
 const TEST_NODES = Workspace.FindFirstChild('Map')!.FindFirstChild('Path')!;
+type Returned<T> = T extends Animation ? AnimationTrack : undefined
 
 const createPart = (point: Vector3) => {
 	const part = new Instance('Part', Workspace)
@@ -21,31 +34,36 @@ const createPart = (point: Vector3) => {
 }
 
 @SharedClass()
-export class Enemy {
+export class Enemy extends Damageable {
     private config: IEnemyConfig;
     private moveVelocity = new Vector3(0, 0, 0);
+
+    @NonSyncProperty()
     private movingCancel?: Callback;
+    
+    private enemyComponent!: EnemyComponent; 
 
-    @SyncProperty()
     private nodes: Vector3[] = [];
-
-    @SyncProperty()
     private position = new Vector3(0, 0, 0);
-
-    @SyncProperty()
     private rotation = 0;
-
-    @SyncProperty()
     private nodeIndex = 0;
-
-    @SyncProperty()
     private lookCFrame = new CFrame();
-
-    @SyncProperty()
     private lookVector = new Vector3(0, 0, 0);
+    private model!: Model;
+    private currentAnimation?: Animation;
+    private aniamtionController!: AnimationController;
+
+    private maid = new Maid();
+    private loadedAnimations = new Map<Animation, AnimationTrack>();
 
     constructor(config: IEnemyConfig) {
+        super(config.Health);
         this.config = config;
+        this.initNodes();
+    }
+
+    public GetConfig() {
+        return this.config;
     }
 
     private visualizeEnemy() {
@@ -62,16 +80,85 @@ export class Enemy {
         });
     }
 
+    public PlayAnimation(animation: Animation, speed?: number) {
+        let track = this.loadedAnimations.get(animation);
+
+        if (!track) {
+            const animator = this.aniamtionController.FindFirstChildOfClass('Animator') || new Instance('Animator', this.aniamtionController);
+
+            track = animator.LoadAnimation(animation);
+            this.loadedAnimations.set(animation, track);
+        }
+
+        if (track.IsPlaying) return track;
+        track.Play();
+        track.AdjustSpeed(speed);
+
+        return track;
+    }
+
+    public ChangeAnimation<T extends Animation | undefined>(animation?: T, speed?: number): Returned<T> {
+        const oldAnimation = this.currentAnimation;
+        this.currentAnimation = animation;
+
+        if (oldAnimation) {
+            this.StopAnimation(oldAnimation);
+        }
+
+        if (this.currentAnimation) {
+            return this.PlayAnimation(this.currentAnimation, speed) as Returned<T>;
+        }
+
+        return undefined as Returned<T>;
+    }
+
+    public StopAnimation(animation: Animation) {
+        const track = this.loadedAnimations.get(animation);
+        if (!track) return;
+
+        track.Stop();
+    }
+
+    private initCollision() {
+        this.model.GetDescendants().forEach((instance) => {
+            if (!instance.IsA('BasePart')) return;
+
+            instance.CollisionGroup = Collision.Enemy;
+        });
+    }
+
+    private initModel() {
+        this.model = this.config.Model.Clone();
+        this.model.Parent = Workspace;
+
+        this.aniamtionController = this.model.FindFirstChildOfClass('AnimationController') || new Instance('AnimationController', this.model);
+
+        this.initCollision();
+
+        this.maid.GiveTask(RunService.Heartbeat.Connect(() => {
+            this.model.MoveTo(this.position);
+            this.model.PivotTo(new CFrame(this.model.GetPivot().Position).mul(CFrame.Angles(0, math.rad(this.rotation), 0)))
+        }));
+    }
+
     @ClientMethod()
     private syncPositionAndOrientation(position: Vector3, rotation: number) {
         this.position = position;
         this.setRotation(rotation);
-        print('sync position and rotation');
+    }
+
+    @OnlyClient
+    private moveToClient() {
+        this.ChangeAnimation(this.config.WalkAnimation);
     }
 
     @SharedMethod()
     private moveTo(index: number) {
         if (this.movingCancel) this.movingCancel();
+
+        if (RunService.IsClient()) {
+            this.moveToClient();
+        }
 
         const thread = coroutine.running();
         const node = this.nodes[index];
@@ -192,6 +279,7 @@ export class Enemy {
             const node = TEST_NODES.FindFirstChild(`${i + 1}`) as BasePart;
             this.validateNode(i + 1, node);
 
+            node.Transparency = 1;
             this.nodes.push(node.Position.sub(new Vector3(0, node.Size.Y / 2, 0)));
         }
     }
@@ -204,10 +292,11 @@ export class Enemy {
         
         this.setRotation(CFrame.lookAt(this.position, nextNode));
         this.nodes.forEach((point, index) => {
-            print(`Moving to node ${index + 1}`, point);
             this.nodeIndex = index;
             this.moveTo(index);
         });
+
+        this.damageBase();
     }
 
     private initHeartbeat() {
@@ -217,15 +306,40 @@ export class Enemy {
         });
     }
 
+    public Destroy() {
+        if (RunService.IsClient()) {
+            this.movingCancel?.();
+            this.model.Destroy();
+        }
+        this.maid.DoCleaning();
+    }
+
+    private damageBase() {
+        const gameService = Dependency<GameService>();
+        gameService.GetBase().TakeDamage(this.GetHealth());
+        this.TakeDamage(this.GetHealth());
+    }
+
+    protected Die() {
+        this.Destroy();
+    }
+
+    private initComponent() {
+        const components = Dependency<Components>();
+        this.enemyComponent = components.addComponent<EnemyComponent>(this.model);
+        this.enemyComponent.Init(this);
+        this.maid.GiveTask(() => this.enemyComponent.destroy());
+    }
+
     @Spawn
     public Init() {
-        this.initNodes();
         this.initHeartbeat();
         this.initMoving();
     }
 
     public InitClient() {
-        this.visualizeEnemy();
+        this.initModel();
+        this.initComponent();
         this.moveTo(this.nodeIndex);
     }
 }

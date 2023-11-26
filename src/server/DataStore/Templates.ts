@@ -5,7 +5,9 @@ export interface TemplateStatsValue {
 }
 
 export const template: ProfileData = {
-	Statistics: {}
+	Statistics: {
+		Money: 0
+	}
 }
 
 export const TemplateDynamicData: DynamicData = {

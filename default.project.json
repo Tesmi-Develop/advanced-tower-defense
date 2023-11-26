@@ -28,6 +28,12 @@
 			},
 			"TS": {
 				"$path": "out/shared"
+			},
+			"Configs": {
+				"$className": "Folder",
+				"Config": {
+					"$className": "ModuleScript"
+				}
 			}
 		},
 		"StarterPlayer": {

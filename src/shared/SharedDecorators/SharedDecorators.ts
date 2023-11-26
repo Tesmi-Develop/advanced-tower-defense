@@ -1,5 +1,6 @@
 import { Constructor } from "@flamework/core/out/types";
 import Maid from "@rbxts/maid";
+import Object from "@rbxts/object-utils";
 import Signal from "@rbxts/rbx-better-signal";
 import { ReplicatedStorage, RunService } from "@rbxts/services";
 import { GlobalEvents } from "shared/network";
@@ -12,7 +13,7 @@ interface SharedClass {
     Constructor: Constructor;
     OnCreate: Signal<(instance: object) => void>;
     OnPlayerReplicated: Signal<(instance: object, player: Player) => void>;
-    SyncProperties: string[];
+    NonSynchronized: Set<string>;
 }
 
 interface IPackageCallMethod {
@@ -21,7 +22,10 @@ interface IPackageCallMethod {
 }
 
 const SharedClasses = new Map<string, SharedClass>();
-const RemoteEvents = new Map<object, RemoteEvent>();
+const SharedInstances = new Map<object, {
+    RemoteEvent: RemoteEvent;
+    Maid: Maid;
+}>();
 let SharedClassesFolder: Folder;
 
 if (RunService.IsClient()) {
@@ -59,10 +63,10 @@ const createRemoteEvent = (className: string) => {
 const SendPackage = <D extends object>(object: object, methodType: PackageType, data: D) => {
     assert(RunService.IsServer(), 'SendPackage can only be called on the server');
 
-    const remoteEvent = RemoteEvents.get(object);
-    assert(remoteEvent, 'This class is not shared. Please use @SharedClass');
+    const instance = SharedInstances.get(object);
+    assert(instance, 'This class is not shared. Please use @SharedClass');
 
-    remoteEvent.FireAllClients(methodType, data);
+    instance.RemoteEvent.FireAllClients(methodType, data);
 }
 
 const getSharedClass = (object: object) => {
@@ -71,22 +75,12 @@ const getSharedClass = (object: object) => {
             Constructor: object as Constructor,
             OnCreate: new Signal(),
             OnPlayerReplicated: new Signal(),
-            SyncProperties: []
+            NonSynchronized: new Set()
         });
     }
 
     return SharedClasses.get(`${object}`)!;
 }
-
-const waitForSharedClass = (object: object) => {
-    while (!SharedClasses.has(`${object}`)) {
-        task.wait();
-    }
-
-    return SharedClasses.get(`${object}`)!;
-}
-
-// Not implemented
 
 export const SharedMethod = () => {
     return (object: object, propertyName: string, description: TypedPropertyDescriptor<Callback>) => {
@@ -107,10 +101,10 @@ export const SharedMethod = () => {
     }
 }
 
-export const SyncProperty = () => {
+export const NonSyncProperty = () => {
     return (object: object, propertyName: string) => {
         const sharedClass = getSharedClass(object);
-        sharedClass.SyncProperties.push(propertyName);
+        sharedClass.NonSynchronized.add(propertyName);
     }
 }
 
@@ -147,8 +141,19 @@ const generateReplicatedProperties = (object: object) => {
     const sharedClass = getSharedClass(getmetatable(object) as object);
     const data = new Map<string, unknown>();
 
-    sharedClass.SyncProperties.forEach((value) => {
-       data.set(value, object[value as never]); 
+    Object.keys(object as Record<string, unknown>).forEach((propertyName) => {
+        if (sharedClass.NonSynchronized.has(propertyName)) {
+            return;
+        }
+
+        const value = object[propertyName as never] as unknown;
+
+        if (typeIs(value, 'table') && getmetatable(value) !== undefined) {
+            //warn(`Tables with metatables cannot be replicated ${propertyName}`);
+            return;
+        }
+
+        data.set(propertyName, object[propertyName as never]);
     });
 
     return data
@@ -162,20 +167,26 @@ export const SharedClass = () => {
         const sharedClassWrapper = getSharedClass(object);
     
         let freeId = 0;
-        let connection: RBXScriptConnection;
-        const maid = new Maid();
-        let remoteEvent: RemoteEvent;
-        const players = new Set<Player>();
 
         objectWithconstructor.constructor = function(this, ...args: defined[]) {
+            const maid = new Maid();
+            let remoteEvent: RemoteEvent;
+            const players = new Set<Player>();
+
             // Server code
             if (RunService.IsServer()) {
                 originalConstructor(this, ...args);
                 
                 remoteEvent = createRemoteEvent(`${object}${freeId}`);
-                RemoteEvents.set(this, remoteEvent);
+                SharedInstances.set(this, {
+                    RemoteEvent: remoteEvent,
+                    Maid: maid
+                });
                 freeId++;
                 GlobalEvents.server.CreateClassInstance.broadcast(`${object}`, args, remoteEvent, generateReplicatedProperties(this));
+
+                maid.GiveTask(remoteEvent);
+                maid.GiveTask(() => SharedInstances.delete(this));
 
                 maid.GiveTask(GlobalEvents.server.OnRequestSharedClasses.connect((player) => {
                     GlobalEvents.server.CreateClassInstance.fire(player, `${object}`, args, remoteEvent, generateReplicatedProperties(this));
@@ -193,13 +204,31 @@ export const SharedClass = () => {
             remoteEvent = args[0] as RemoteEvent;
             assert(typeIs(remoteEvent, 'Instance') && remoteEvent.IsA('RemoteEvent'), 'Invalid RemoteEvent');
 
-            RemoteEvents.set(this, remoteEvent);
+            SharedInstances.set(this, {
+                RemoteEvent: remoteEvent,
+                Maid: maid
+            });
             initClientPackageParser(this, remoteEvent);
            
             args.remove(0);
 
             originalConstructor(this, ...args);
             remoteEvent.FireServer();
+        }
+
+        if ('Destroy' in objectWithconstructor && typeIs(objectWithconstructor.Destroy, 'function')) {
+            const originalDestroy = objectWithconstructor.Destroy;
+
+            objectWithconstructor.Destroy = function(this, ...args: defined[]) {
+                if (RunService.IsServer()) {
+                    SendPackage(this, PackageType.callMethod, {
+                        methodName: 'Destroy',
+                        args: args,
+                    });
+                }
+                originalDestroy(this, ...args);
+                SharedInstances.get(this)!.Maid.DoCleaning();
+            }
         }
     }
 }
