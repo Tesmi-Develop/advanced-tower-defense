@@ -11,9 +11,14 @@ declare global {
 		}
 		GlobalData: {
 			Data: {
+				EndTime: number;
 				BaseHealth: number;
 				BaseMaxHealth: number;
 				Wave: number;
+				IsEnableVote: boolean;
+				NeedCountVoted: number;
+				CountConfirm: number;
+				Voted: Player[];
 				Config: IGameConfig;
 			}
 			Tags: {};

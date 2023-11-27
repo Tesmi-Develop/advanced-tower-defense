@@ -1,11 +1,14 @@
 import { Service, OnStart, OnInit } from "@flamework/core";
 import Signal from "@rbxts/rbx-better-signal";
 import { ReplicaService } from "@rbxts/replicaservice";
-import { ReplicatedStorage } from "@rbxts/services";
+import { Players, ReplicatedStorage, Workspace } from "@rbxts/services";
 import { GlobalDataReplica } from "Types/Data/Replica";
+import { WaveInfo } from "Types/Wave/WaveInfo";
 import { $terrify } from "rbxts-transformer-t-new";
 import { Base } from "server/Classes/Base";
+import { WavesHadler } from "server/Classes/WaveHandler";
 import { Enemy } from "shared/Classes/Enemy";
+import { Tower } from "shared/Classes/Tower";
 import { Spawn } from "shared/decorators/Methods/Spawn";
 
 const token = ReplicaService.NewClassToken('GlobalData');
@@ -16,11 +19,14 @@ export class GameService implements OnStart, OnInit {
     private waitingReplica?: Signal;
     private config!: IGameConfig;
     private base!: Base;
+    private waveHandler!: WavesHadler;
 
     onInit() {
         
     }
 
+    public GetWaveHandler() { return this.waveHandler; }
+    public GetConfig() { return this.config; }
     public GetBase() { return this.base; }
 
     public GetReplicaAsync() {
@@ -40,6 +46,11 @@ export class GameService implements OnStart, OnInit {
 				BaseHealth: 100,
                 BaseMaxHealth: 100,
                 Wave: 0,
+                EndTime: 0,
+                Voted: [],
+                CountConfirm: 0,
+                NeedCountVoted: 0,
+                IsEnableVote: false,
                 Config: this.config,
 			},
 			Replication: 'All',
@@ -63,24 +74,29 @@ export class GameService implements OnStart, OnInit {
     }
 
     @Spawn
-    private testEnemy() {
-        for (const i of $range(0, 10)) {
-            const enemy = new Enemy({
-                Name: 'Test',
-                Model: ReplicatedStorage.Assets.Zombie,
-                Health: 3,
-                WalkAnimation: ReplicatedStorage.Assets.Walk,
-                Walkspeed: 6,
-            });
-            enemy.Init();
-            task.wait(1);
-        }
+    private testTower() {
+        task.wait(3);
+        print('Test tower');
+        const placement = Workspace.FindFirstChild('TowerPlacement') as BasePart;
+        const pos = placement.Position.sub(new Vector3(0, placement.Size.Y / 2, 0));
+        new Tower(Players.GetPlayers()[0], pos, {
+            Name: 'TestTower',
+            Logo: 0,
+            Model: ReplicatedStorage.Assets.Towers.Gladiator
+        }).Init();
+    }
+
+    private initWaveHandler() {
+        // TODO
+        this.waveHandler = new WavesHadler(this);
+        this.waveHandler.Start(require(ReplicatedStorage.Content.Waves.Easy) as WaveInfo[]);
     }
 
     onStart() {
         this.initGameConfig();
         this.initReplica();
         this.initBase();
-        this.testEnemy();
+        this.initWaveHandler();
+        this.testTower();
     }
 }

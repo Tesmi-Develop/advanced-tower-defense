@@ -11,7 +11,7 @@ interface ClientEvents {
 }
 
 interface ServerFunctions {
-    
+    Vote(confirm: boolean): boolean;
 }
 
 interface ClientFunctions {}

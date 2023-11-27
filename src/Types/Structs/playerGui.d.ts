@@ -1,5 +1,21 @@
 interface PlayerGui extends Instance {
     Main: ScreenGui & {
+        SkipWave: Frame & {
+            Confirm: ImageButton & {
+                UIAspectRatioConstraint: UIAspectRatioConstraint;
+            };
+            Cancel: ImageButton & {
+                UIAspectRatioConstraint: UIAspectRatioConstraint;
+            };
+            Title: TextLabel & {
+                UIStroke: UIStroke;
+            };
+            UICorner: UICorner;
+            UIStroke: UIStroke;
+            Counter: TextLabel & {
+                UIStroke: UIStroke;
+            };
+        }
         WaveCounter: TextLabel;
         BaseHealthBar: CanvasGroup & {
             UICorner: UICorner;
@@ -9,6 +25,7 @@ interface PlayerGui extends Instance {
             };
             Fill: Frame;
         };
+        Timer: TextLabel;
     }
     HoverGui: ScreenGui & {
         Keybinds: Frame & {

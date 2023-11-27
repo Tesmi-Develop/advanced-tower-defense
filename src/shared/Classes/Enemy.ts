@@ -12,8 +12,9 @@ import type { GameService } from "server/services/GameService";
 import type { EnemyComponent } from "client/components/EnemyComponent";
 import Maid from "@rbxts/maid";
 import { Components } from "@flamework/components";
+import Signal from "@rbxts/rbx-better-signal";
 
-interface IEnemyConfig {
+export interface IEnemyConfig {
     Name: string;
     Health: number;
     Model: Model;
@@ -35,6 +36,9 @@ const createPart = (point: Vector3) => {
 
 @SharedClass()
 export class Enemy extends Damageable {
+    public static readonly OnDiedEnemy = new Signal<(enemy: Enemy) => void>();
+    public static readonly Enemies = new Set<Enemy>();
+    
     private config: IEnemyConfig;
     private moveVelocity = new Vector3(0, 0, 0);
 
@@ -54,7 +58,28 @@ export class Enemy extends Damageable {
     private aniamtionController!: AnimationController;
 
     private maid = new Maid();
+    
     private loadedAnimations = new Map<Animation, AnimationTrack>();
+
+    public static StaticInitClient() {
+        RunService.RenderStepped.Connect(() => {
+            this.Enemies.forEach((enemy) => {
+                enemy.UpdateModelState();
+            });
+        });
+    }
+
+    private static addEnemy(enemy: Enemy) {
+        Enemy.Enemies.add(enemy);
+    }
+
+    private static removeEnemy(enemy: Enemy) {
+        const isFound = Enemy.Enemies.delete(enemy);
+
+        if (isFound) {
+            this.OnDiedEnemy.Fire(enemy);
+        }
+    }
 
     constructor(config: IEnemyConfig) {
         super(config.Health);
@@ -127,6 +152,11 @@ export class Enemy extends Damageable {
         });
     }
 
+    public UpdateModelState() {
+        this.model.MoveTo(this.position);
+        this.model.PivotTo(new CFrame(this.model.GetPivot().Position).mul(CFrame.Angles(0, math.rad(this.rotation), 0)));
+    }
+
     private initModel() {
         this.model = this.config.Model.Clone();
         this.model.Parent = Workspace;
@@ -134,11 +164,6 @@ export class Enemy extends Damageable {
         this.aniamtionController = this.model.FindFirstChildOfClass('AnimationController') || new Instance('AnimationController', this.model);
 
         this.initCollision();
-
-        this.maid.GiveTask(RunService.Heartbeat.Connect(() => {
-            this.model.MoveTo(this.position);
-            this.model.PivotTo(new CFrame(this.model.GetPivot().Position).mul(CFrame.Angles(0, math.rad(this.rotation), 0)))
-        }));
     }
 
     @ClientMethod()
@@ -322,6 +347,7 @@ export class Enemy extends Damageable {
 
     protected Die() {
         this.Destroy();
+        Enemy.removeEnemy(this);
     }
 
     private initComponent() {
@@ -333,11 +359,13 @@ export class Enemy extends Damageable {
 
     @Spawn
     public Init() {
+        Enemy.addEnemy(this);
         this.initHeartbeat();
         this.initMoving();
     }
 
     public InitClient() {
+        Enemy.addEnemy(this);
         this.initModel();
         this.initComponent();
         this.moveTo(this.nodeIndex);

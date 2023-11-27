@@ -11,6 +11,7 @@ enum PackageType {
 
 interface SharedClass {
     Constructor: Constructor;
+    IsInitedClient: boolean;
     OnCreate: Signal<(instance: object) => void>;
     OnPlayerReplicated: Signal<(instance: object, player: Player) => void>;
     NonSynchronized: Set<string>;
@@ -36,6 +37,8 @@ if (RunService.IsClient()) {
         }
     
         const object = SharedClasses.get(objectName)!;
+        if (object.IsInitedClient) return;
+        
         const instance = new object.Constructor(remoteEvent as never, ...(args as never[]));
 
         properties.forEach((data, propertyName) => {
@@ -43,6 +46,7 @@ if (RunService.IsClient()) {
         });
 
         (instance['InitClient' as never] as Callback)(instance);
+        object.IsInitedClient = true;
     });
 }
 
@@ -73,6 +77,7 @@ const getSharedClass = (object: object) => {
     if (!SharedClasses.has(`${object}`)) {
         SharedClasses.set(`${object}`, {
             Constructor: object as Constructor,
+            IsInitedClient: false,
             OnCreate: new Signal(),
             OnPlayerReplicated: new Signal(),
             NonSynchronized: new Set()

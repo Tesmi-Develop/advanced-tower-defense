@@ -34,6 +34,15 @@
 				"Config": {
 					"$className": "ModuleScript"
 				}
+			},
+			"Content": {
+				"$className": "Folder",
+				"Enemies": {
+					"$className": "ModuleScript"
+				},
+				"Towers": {
+					"$className": "ModuleScript"
+				}
 			}
 		},
 		"StarterPlayer": {

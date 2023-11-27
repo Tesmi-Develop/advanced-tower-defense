@@ -1,11 +1,12 @@
 import { Controller, Dependency, OnInit, OnStart } from "@flamework/core";
-import { PlayerReplica } from "Types/Data/Replica";
 import LocalPlayer from "client/LocalPlayer";
 import { PlayerController } from "./PlayerController";
 import { Components } from "@flamework/components";
 import { BaseHealthComponent } from "client/components/UI/BaseHealthComponent";
 import { EnemyInfoComponent } from "client/components/UI/EnemyInfoComponent";
 import { WaveCounterComponent } from "client/components/UI/WaveCounterComponent";
+import { TimerComponent } from "client/components/UI/TImerComponent";
+import { SkipWaveComponent } from "client/components/UI/SkipWaveComponent";
 
 const PlayerGui = LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
 
@@ -39,6 +40,8 @@ export class GuiController implements OnStart, OnInit {
         components.addComponent<BaseHealthComponent>(Main.BaseHealthBar);
         components.addComponent<EnemyInfoComponent>(this.GetScreenGui('HoverGui').Enemies);
         components.addComponent<WaveCounterComponent>(Main.WaveCounter);
+        components.addComponent<TimerComponent>(Main.Timer);
+        components.addComponent<SkipWaveComponent>(Main.SkipWave);
     }
 
     public Fade(time: number) {

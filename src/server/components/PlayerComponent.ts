@@ -4,14 +4,12 @@ import { ReplicaService } from "@rbxts/replicaservice";
 import { Profile } from "@rbxts/profileservice/globals";
 import { Constructor } from "@rbxts/component";
 import Signal from "@rbxts/rbx-better-signal";
-import { ReplicatedStorage } from "@rbxts/services";
 import DeepTableClone from "shared/Utility/DeepTableClone";
 import { ProfileMetadata } from "Types/Data/ProfileMetadata";
 import { PlayerReplica } from "Types/Data/Replica";
 import { Spawn } from "shared/decorators/Methods/Spawn";
 import { OnDataCreate, OnReplicaCreate, PlayerModuleDecorator } from "shared/decorators/PlayerModuleDecorator";
 import { LoadProfile } from "server/DataStore/LoadProfile";
-import Statistics from "shared/Config/Statistics";
 import { TemplateDynamicData } from "server/DataStore/Templates";
 import Collision from "shared/Collisions";
 
@@ -19,7 +17,6 @@ const replicaPlayerDataToken = ReplicaService.NewClassToken("PlayerData");
 
 @Component({})
 export class PlayerComponent extends BaseComponent<{}, Player> implements OnStart {
-	public readonly OnChangedStatistics = new Signal<(name: keyof ProfileData['Statistics'], value: number) => void>();
 	public readonly OnLeaved = new Signal<() => void>();
 	private profile!: Profile<ProfileData, ProfileMetadata>;
 	private replica!: PlayerReplica;
@@ -197,6 +194,18 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
 		humanoid.WalkSpeed = this.currentWalkspeed;
 	}
 
+	public GiveMoney(amount: number) {
+		if (!this.replica) return;
+		const value = this.replica.Data.Dynamic.Statistics.Money;
+		this.replica.SetValue('Dynamic.Statistics.Money', value + amount);
+	}
+
+	public TakeMoney(amount: number) {
+		if (!this.replica) return;
+		const value = this.replica.Data.Dynamic.Statistics.Money;
+		this.replica.SetValue('Dynamic.Statistics.Money', value - amount);
+	}
+
 	public GetReplicaAsync() {
 		if (this.replica) return this.replica;
 		this.WaitForInit();
@@ -217,42 +226,11 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
 		return this.profile;
 	}
 
-	public GetValueInStatictics<T extends keyof ProfileData['Statistics']>(name: T): number {
-		return this.profile.Data.Statistics[name];
-	}
-
-	public GiveValueInStatictics<T extends keyof ProfileData['Statistics']>(name: T, amount: number) {
-		const value = this.GetValueInStatictics(name);
-
-		amount = math.floor(amount);
-
-		const AbsoluteStatisticName = Statistics.get(name)?.AbsoluteStatisticName;
-
-		
-
-		this.replica?.SetValue(`Profile.Statistics.${name}`, value + amount as never);
-		this.OnChangedStatistics.Fire(name, value + amount);
-	}
-
-	public TakeValueInStatictics<T extends keyof ProfileData['Statistics']>(name: T, amount: number) {
-		const value = this.GetValueInStatictics(name) as never;
-
-		amount = math.floor(amount);
-
-		this.replica?.SetValue(`Profile.Statistics.${name}`, value - amount as never);
-		this.OnChangedStatistics.Fire(name, value - amount);
-	}
-
-	public SetValueInStatictics<T extends keyof ProfileData['Statistics']>(name: T, value: number) {
-		this.replica?.SetValue(`Profile.Statistics.${name}`, value as never);
-		this.OnChangedStatistics.Fire(name, value);
-	}
-
 	private initProfile() {
 		this.profile = LoadProfile(this.instance) as Profile<ProfileData, ProfileMetadata>;
 
 		if (this.profile === undefined) {
-			this.instance.Kick('Profile not loaded. Please rejoin in game');
+			this.instance.Kick('Profile not loaded. Please rejoin the game');
 			return;
 		}
 	}
