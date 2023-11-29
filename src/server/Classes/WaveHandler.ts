@@ -76,9 +76,13 @@ export class WavesHadler {
         const countConfirm = this.replica.Data.CountConfirm;
 
         if (countConfirm >= needCountVoted) {
-            this.replica.SetValue('IsEnableVote', false);
+            this.endVoting();
             this.NextWave();
         }
+    }
+
+    private endVoting() {
+        this.replica.SetValue('IsEnableVote', false);
     }
 
     public OnVote(player: Player, confirm: boolean): boolean {
@@ -108,6 +112,10 @@ export class WavesHadler {
     }
 
     public NextWave() {
+        if (this.replica.Data.IsEnableVote) {
+            this.endVoting();
+        }
+
         if (!this.waves[this.waveIndex + 1]) {
             task.wait(3);
             print('win');
