@@ -1,12 +1,17 @@
-import Signal from "@rbxts/rbx-better-signal";
-import { Workspace } from "@rbxts/services";
+import { Flamework } from "@flamework/core";
+import Object from "@rbxts/object-utils";
+import { ReplicatedStorage, Workspace } from "@rbxts/services";
 import { TowerConfig } from "Types/Tower/TowerConfig";
 import Collision from "shared/Collisions";
 import { SharedClass } from "shared/SharedDecorators/SharedDecorators";
 import { Spawn } from "shared/decorators/Methods/Spawn";
 
+const checker = Flamework.createGuard<Map<string, Omit<TowerConfig, 'Name'>>>();
+const towers = require(ReplicatedStorage.WaitForChild('Content').WaitForChild('Towers') as ModuleScript) as Record<string, TowerConfig>;
+
 @SharedClass()
 export class Tower {
+    public static readonly TowerConfigs: Map<string, TowerConfig> = new Map();
     private owner: Player;
     private position: Vector3;
     private config: TowerConfig;
@@ -17,6 +22,17 @@ export class Tower {
         this.position = position;
         this.config = config;
     }
+
+    public static StaticInitTowerConfigs() {
+        Object.keys(towers).forEach((key) => {
+            towers[key].Name = key;
+            this.TowerConfigs.set(key, towers[key]);
+        });
+
+        assert(checker(this.TowerConfigs), 'TowerConfigs is not valid');
+    }
+
+    public static GetTowerConfigByName(name: string) { return this.TowerConfigs.get(name); }
 
     public GetOwner() { return this.owner; }
 
@@ -83,7 +99,6 @@ export class Tower {
     }
 
     public InitClient() {
-        print('client invoke')
         this.initModel();
         this.initCollision();
     }

@@ -4,6 +4,7 @@ export interface TemplateStatsValue {
 }
 
 export const template: ProfileData = {
+	Towers: []
 }
 
 export const TemplateDynamicData: DynamicData = {

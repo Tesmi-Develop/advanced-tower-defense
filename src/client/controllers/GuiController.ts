@@ -7,6 +7,7 @@ import { EnemyInfoComponent } from "client/components/UI/EnemyInfoComponent";
 import { WaveCounterComponent } from "client/components/UI/WaveCounterComponent";
 import { TimerComponent } from "client/components/UI/TImerComponent";
 import { SkipWaveComponent } from "client/components/UI/SkipWaveComponent";
+import { TowerListComponent } from "client/components/UI/TowerListComponent";
 
 const PlayerGui = LocalPlayer.WaitForChild("PlayerGui") as PlayerGui;
 
@@ -42,6 +43,7 @@ export class GuiController implements OnStart, OnInit {
         components.addComponent<WaveCounterComponent>(Main.WaveCounter);
         components.addComponent<TimerComponent>(Main.Timer);
         components.addComponent<SkipWaveComponent>(Main.SkipWave);
+        components.addComponent<TowerListComponent>(Main.Towers);
     }
 
     public Fade(time: number) {

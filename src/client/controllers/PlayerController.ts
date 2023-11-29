@@ -3,6 +3,8 @@ import Signal from "@rbxts/rbx-better-signal";
 import { ReplicaController } from "@rbxts/replicaservice";
 import { GlobalDataReplica, PlayerReplica } from "Types/Data/Replica";
 import { Events } from "client/network";
+import { Enemy } from "shared/Classes/Enemy";
+import { Tower } from "shared/Classes/Tower";
 
 export interface OnReplicaCreated {
     onReplicaCreated(replica: PlayerReplica): void;
@@ -39,7 +41,7 @@ export class PlayerController implements OnStart, OnInit {
         });
     }
 
-    private GetPlayerReplicaAsync() {
+    public GetPlayerReplicaAsync() {
         if (this.playerReplica) return this.playerReplica;
 
         if (this.waitingForReplicaSignal === undefined) this.waitingForReplicaSignal = new Signal();
@@ -48,7 +50,7 @@ export class PlayerController implements OnStart, OnInit {
         return replica;
     }
 
-    private GetGlobalReplicaAsync() {
+    public GetGlobalReplicaAsync() {
         if (this.globalReplica) return this.globalReplica;
 
         if (this.waitingForGlobalReplicaSignal === undefined) this.waitingForGlobalReplicaSignal = new Signal();

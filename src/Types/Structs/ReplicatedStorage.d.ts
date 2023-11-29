@@ -3,6 +3,7 @@ interface ReplicatedStorage extends Instance {
         Config: ModuleScript;
     };
     Content: Folder & {
+        Towers: ModuleScript;
         Enemies: ModuleScript;
         Waves: Folder & {
             Easy: ModuleScript;
@@ -10,6 +11,7 @@ interface ReplicatedStorage extends Instance {
     }
     Assets: Folder & {
         Towers: Folder & {
+            Scout: Model;
             Gladiator: Model;
         }
         Worker: Model;

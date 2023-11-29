@@ -12,6 +12,7 @@ import { OnDataCreate, OnReplicaCreate, PlayerModuleDecorator } from "shared/dec
 import { LoadProfile } from "server/DataStore/LoadProfile";
 import { TemplateDynamicData } from "server/DataStore/Templates";
 import Collision from "shared/Collisions";
+import { TowerInventory } from "server/PlayerModules/TowerInventory";
 
 const replicaPlayerDataToken = ReplicaService.NewClassToken("PlayerData");
 
@@ -70,6 +71,8 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
             this.tracks.clear();
         });
 	}
+
+	public GetInventory() { return this.GetModule(TowerInventory); }
 
 	@Spawn
 	private initWalkspeed() {
@@ -192,6 +195,13 @@ export class PlayerComponent extends BaseComponent<{}, Player> implements OnStar
 		const humanoid = character.WaitForChild('Humanoid') as Humanoid;
 
 		humanoid.WalkSpeed = this.currentWalkspeed;
+	}
+
+	public HasMoney(amount: number) {
+		if (!this.replica) return false;
+		const value = this.replica.Data.Dynamic.Statistics.Money;
+		
+		return value >= amount;
 	}
 
 	public GiveMoney(amount: number) {

@@ -5,13 +5,22 @@ import Signal from "@rbxts/rbx-better-signal";
 import { ReplicatedStorage, RunService } from "@rbxts/services";
 import { GlobalEvents } from "shared/network";
 
+const OnRequestSharedClasses = new Signal<(Player: Player) => void>();
+const RequestedPlayers = new Set<Player>();
+
+if (RunService.IsServer()) {
+    GlobalEvents.server.OnRequestSharedClasses.connect((player) => {
+        if (RequestedPlayers.has(player)) return;
+        RequestedPlayers.add(player);
+        OnRequestSharedClasses.Fire(player);
+    });
+}
 enum PackageType {
     callMethod
 }
 
 interface SharedClass {
     Constructor: Constructor;
-    IsInitedClient: boolean;
     OnCreate: Signal<(instance: object) => void>;
     OnPlayerReplicated: Signal<(instance: object, player: Player) => void>;
     NonSynchronized: Set<string>;
@@ -25,6 +34,7 @@ interface IPackageCallMethod {
 const SharedClasses = new Map<string, SharedClass>();
 const SharedInstances = new Map<object, {
     RemoteEvent: RemoteEvent;
+    IsInitedClient: boolean;
     Maid: Maid;
 }>();
 let SharedClassesFolder: Folder;
@@ -37,7 +47,7 @@ if (RunService.IsClient()) {
         }
     
         const object = SharedClasses.get(objectName)!;
-        if (object.IsInitedClient) return;
+        //if (object.IsInitedClient) return;
         
         const instance = new object.Constructor(remoteEvent as never, ...(args as never[]));
 
@@ -46,7 +56,7 @@ if (RunService.IsClient()) {
         });
 
         (instance['InitClient' as never] as Callback)(instance);
-        object.IsInitedClient = true;
+        //object.IsInitedClient = true;
     });
 }
 
@@ -77,7 +87,6 @@ const getSharedClass = (object: object) => {
     if (!SharedClasses.has(`${object}`)) {
         SharedClasses.set(`${object}`, {
             Constructor: object as Constructor,
-            IsInitedClient: false,
             OnCreate: new Signal(),
             OnPlayerReplicated: new Signal(),
             NonSynchronized: new Set()
@@ -185,7 +194,8 @@ export const SharedClass = () => {
                 remoteEvent = createRemoteEvent(`${object}${freeId}`);
                 SharedInstances.set(this, {
                     RemoteEvent: remoteEvent,
-                    Maid: maid
+                    Maid: maid,
+                    IsInitedClient: false
                 });
                 freeId++;
                 GlobalEvents.server.CreateClassInstance.broadcast(`${object}`, args, remoteEvent, generateReplicatedProperties(this));
@@ -193,7 +203,7 @@ export const SharedClass = () => {
                 maid.GiveTask(remoteEvent);
                 maid.GiveTask(() => SharedInstances.delete(this));
 
-                maid.GiveTask(GlobalEvents.server.OnRequestSharedClasses.connect((player) => {
+                maid.GiveTask(OnRequestSharedClasses.Connect((player) => {
                     GlobalEvents.server.CreateClassInstance.fire(player, `${object}`, args, remoteEvent, generateReplicatedProperties(this));
                 }));
 
@@ -211,7 +221,8 @@ export const SharedClass = () => {
 
             SharedInstances.set(this, {
                 RemoteEvent: remoteEvent,
-                Maid: maid
+                Maid: maid,
+                IsInitedClient: false
             });
             initClientPackageParser(this, remoteEvent);
            

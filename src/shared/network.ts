@@ -12,6 +12,7 @@ interface ClientEvents {
 
 interface ServerFunctions {
     Vote(confirm: boolean): boolean;
+    PlaceTower(towerName: string, ray: Ray): boolean;
 }
 
 interface ClientFunctions {}

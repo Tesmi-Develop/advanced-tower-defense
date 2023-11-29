@@ -1,5 +1,14 @@
 interface PlayerGui extends Instance {
     Main: ScreenGui & {
+        Towers: Frame & {
+            Tower: ImageButton & {
+                UIAspectRatioConstraint: UIAspectRatioConstraint;
+                Icon: ImageLabel;
+            };
+            List: Frame & {
+                UIListLayout: UIListLayout;
+            };
+        }
         SkipWave: Frame & {
             Confirm: ImageButton & {
                 UIAspectRatioConstraint: UIAspectRatioConstraint;
