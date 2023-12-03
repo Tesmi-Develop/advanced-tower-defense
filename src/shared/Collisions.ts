@@ -15,6 +15,7 @@ if (RunService.IsServer()) {
     PhysicsService.CollisionGroupSetCollidable(Collision.Enemy, Collision.Player, false);
 
     PhysicsService.RegisterCollisionGroup(Collision.Tower);
+    PhysicsService.CollisionGroupSetCollidable(Collision.Tower, Collision.Tower, false);
     PhysicsService.CollisionGroupSetCollidable(Collision.Tower, Collision.Enemy, false);
     PhysicsService.CollisionGroupSetCollidable(Collision.Tower, Collision.Player, false);
 }

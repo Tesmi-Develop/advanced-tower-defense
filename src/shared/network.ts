@@ -7,7 +7,7 @@ interface ServerEvents {
 
 interface ClientEvents {
     CastVFX(Name: string, Config: BaseConfig): void;
-    CreateClassInstance(objectName: string, args: unknown[], remoteEvent: RemoteEvent, syncProperties: Map<string, unknown>): void;
+    CreateClassInstance(objectName: string, args: unknown[], remoteEvent: RemoteEvent, syncProperties: Map<string, unknown>, clientMethodInitName?: string | number | symbol): void;
 }
 
 interface ServerFunctions {

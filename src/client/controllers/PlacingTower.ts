@@ -4,9 +4,11 @@ import { TowerConfig } from "Types/Tower/TowerConfig";
 import LocalPlayer from "client/LocalPlayer";
 import { Functions } from "client/network";
 import Collision from "shared/Collisions";
+import Tags from "shared/Tags";
 
 const camera = Workspace.CurrentCamera!;
 const PlayerGui = LocalPlayer.WaitForChild('PlayerGui') as PlayerGui;
+const PlaceHolderTweenInfo = new TweenInfo(0.3);
 
 @Controller({})
 export class PlacingTower implements OnInit {
@@ -30,7 +32,7 @@ export class PlacingTower implements OnInit {
     }
 
     private ShowRestrictedArea() {
-        CollectionService.GetTagged('RestrictedArea').forEach((value) => {
+        CollectionService.GetTagged(Tags.RestrictedArea).forEach((value) => {
             const part = value as Part;
 
             if (this.tweens.has(part)) {
@@ -38,14 +40,14 @@ export class PlacingTower implements OnInit {
                 this.tweens.delete(part);
             }
             
-            const tween = TweenService.Create(part, new TweenInfo(0.6), { Transparency: 0.6 });
+            const tween = TweenService.Create(part, PlaceHolderTweenInfo, { Transparency: 0.6 });
             tween.Play();
             this.tweens.set(part, tween);
         });
     }
 
     private HideRestrictedArea() {
-        CollectionService.GetTagged('RestrictedArea').forEach((value) => {
+        CollectionService.GetTagged(Tags.RestrictedArea).forEach((value) => {
             const part = value as Part;
 
             if (this.tweens.has(part)) {
@@ -53,7 +55,7 @@ export class PlacingTower implements OnInit {
                 this.tweens.delete(part);
             }
             
-            const tween = TweenService.Create(part, new TweenInfo(0.6), { Transparency: 1 });
+            const tween = TweenService.Create(part, PlaceHolderTweenInfo, { Transparency: 1 });
             tween.Play();
             this.tweens.set(part, tween);
         });
@@ -116,7 +118,7 @@ export class PlacingTower implements OnInit {
         }   
         
         this.Tower = tower;
-        this.model = tower.Model.Clone(); 
+        this.model = tower.Levels[0].Model.Clone(); 
         this.model.Parent = Workspace;
         this.model.PrimaryPart!.Anchored = true;
 
@@ -164,7 +166,7 @@ export class PlacingTower implements OnInit {
                 if (result === undefined || result.Instance === undefined) { return; }
 
                 const size = this.model.GetExtentsSize();
-                this.model.MoveTo(result.Position.add(new Vector3(0, size.Y / 2, 0)));
+                this.model.PivotTo(new CFrame(result.Position.add(new Vector3(0, size.Y / 2, 0))));
                 this.PlaceHolder.Position = result.Position;
                 this.ray = ray
 

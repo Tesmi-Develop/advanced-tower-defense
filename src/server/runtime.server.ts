@@ -1,5 +1,5 @@
 import { Flamework } from "@flamework/core";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 
 Flamework.addPaths("src/server/components");
 Flamework.addPaths("src/server/services");

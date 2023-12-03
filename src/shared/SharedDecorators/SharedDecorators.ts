@@ -40,14 +40,13 @@ const SharedInstances = new Map<object, {
 let SharedClassesFolder: Folder;
 
 if (RunService.IsClient()) {
-    GlobalEvents.client.CreateClassInstance.connect((objectName, args, remoteEvent, properties) => {
+    GlobalEvents.client.CreateClassInstance.connect((objectName, args, remoteEvent, properties, clientMethodInitName) => {
         if (!SharedClasses.has(objectName)) {
             warn(`Class ${objectName} does not exist but server sent it`);
             return;
         }
     
         const object = SharedClasses.get(objectName)!;
-        //if (object.IsInitedClient) return;
         
         const instance = new object.Constructor(remoteEvent as never, ...(args as never[]));
 
@@ -55,8 +54,9 @@ if (RunService.IsClient()) {
             instance[propertyName as never] = data as never;
         });
 
-        (instance['InitClient' as never] as Callback)(instance);
-        //object.IsInitedClient = true;
+        if (clientMethodInitName) {
+            (instance[clientMethodInitName as never] as Callback)(instance);
+        }
     });
 }
 
@@ -173,12 +173,24 @@ const generateReplicatedProperties = (object: object) => {
     return data
 }
 
-export const SharedClass = () => {
-    return (object: object) => {
-        const objectWithconstructor = object as { constructor: (...args: defined[]) => unknown };
+const HaveDestroyMethod = (object: object): object is { Destroy: Callback }  => 'Destroy' in object && typeIs(object.Destroy, 'function');
+
+interface SharedClassConfig<K extends string | number | symbol = string, D extends string | number | symbol = string> {
+    ClientMethodInitName?: K,
+    DestroyMethodName?: D
+}
+
+type ExtractMethods <C> = ExtractMembers<C, Callback>
+
+export const SharedClass = <T extends object, K extends keyof ExtractMethods<T>, D extends ExtractMethods<T>>({
+    ClientMethodInitName,
+    DestroyMethodName
+}: SharedClassConfig<K, keyof D>) => {
+    return (object: Constructor<T>) => {
+        const objectWithconstructor = object as unknown as { constructor: (...args: defined[]) => unknown };
         const originalConstructor = objectWithconstructor.constructor;
     
-        const sharedClassWrapper = getSharedClass(object);
+        getSharedClass(object);
     
         let freeId = 0;
 
@@ -198,13 +210,13 @@ export const SharedClass = () => {
                     IsInitedClient: false
                 });
                 freeId++;
-                GlobalEvents.server.CreateClassInstance.broadcast(`${object}`, args, remoteEvent, generateReplicatedProperties(this));
+                GlobalEvents.server.CreateClassInstance.broadcast(`${object}`, args, remoteEvent, generateReplicatedProperties(this), ClientMethodInitName);
 
                 maid.GiveTask(remoteEvent);
                 maid.GiveTask(() => SharedInstances.delete(this));
 
                 maid.GiveTask(OnRequestSharedClasses.Connect((player) => {
-                    GlobalEvents.server.CreateClassInstance.fire(player, `${object}`, args, remoteEvent, generateReplicatedProperties(this));
+                    GlobalEvents.server.CreateClassInstance.fire(player, `${object}`, args, remoteEvent, generateReplicatedProperties(this), ClientMethodInitName);
                 }));
 
                 maid.GiveTask(remoteEvent.OnServerEvent.Connect((player) => {
@@ -232,10 +244,11 @@ export const SharedClass = () => {
             remoteEvent.FireServer();
         }
 
-        if ('Destroy' in objectWithconstructor && typeIs(objectWithconstructor.Destroy, 'function')) {
-            const originalDestroy = objectWithconstructor.Destroy;
+        if (DestroyMethodName || HaveDestroyMethod(objectWithconstructor)) {
+            const objectWithDestroy = objectWithconstructor as unknown as { Destroy: (...args: defined[]) => void }; 
+            const originalDestroy = objectWithDestroy[(DestroyMethodName || 'Destroy') as never] as Callback;
 
-            objectWithconstructor.Destroy = function(this, ...args: defined[]) {
+            const callback: typeof objectWithDestroy['Destroy'] = function(this: typeof objectWithDestroy, ...args: defined[]) {
                 if (RunService.IsServer()) {
                     SendPackage(this, PackageType.callMethod, {
                         methodName: 'Destroy',
@@ -244,7 +257,9 @@ export const SharedClass = () => {
                 }
                 originalDestroy(this, ...args);
                 SharedInstances.get(this)!.Maid.DoCleaning();
-            }
+            };
+
+            objectWithDestroy[(DestroyMethodName || 'Destroy') as never] = callback as never;
         }
     }
 }

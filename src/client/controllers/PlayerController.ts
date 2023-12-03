@@ -4,7 +4,7 @@ import { ReplicaController } from "@rbxts/replicaservice";
 import { GlobalDataReplica, PlayerReplica } from "Types/Data/Replica";
 import { Events } from "client/network";
 import { Enemy } from "shared/Classes/Enemy";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 
 export interface OnReplicaCreated {
     onReplicaCreated(replica: PlayerReplica): void;
@@ -20,7 +20,7 @@ export class PlayerController implements OnStart, OnInit {
     private waitingForReplicaSignal?: Signal<(replica: PlayerReplica) => void>;
     private globalReplica!: GlobalDataReplica;
     private waitingForGlobalReplicaSignal?: Signal<(replica: GlobalDataReplica) => void>;
-    
+
     onInit() {
         this.initOnReplicaCreated();
         this.initOnGlobalReplicaCreated();

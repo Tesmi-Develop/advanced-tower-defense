@@ -16,6 +16,14 @@ export default abstract class Damageable {
     public GetHealth() { return this.health; }
     public GetMaxHealth() { return this.maxHealth; }
 
+    public Destroy() {
+        pcall(() => {
+            this.OnChangeHealth.Destroy();
+            this.OnDamage.Destroy();
+            this.OnDied.Destroy();
+        });
+    }
+
     public SetHealth(health: number) {
         health = math.max(health, 0);
         health = math.min(health, this.maxHealth);

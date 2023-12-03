@@ -3,7 +3,7 @@ import { PlayerReplica } from "Types/Data/Replica";
 import { TowerConfig } from "Types/Tower/TowerConfig";
 import { PlayerComponent } from "server/components/PlayerComponent";
 import { GameService } from "server/services/GameService";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 import { OnReplicaCreate, PlayerModuleDecorator } from "shared/decorators/PlayerModuleDecorator";
 
 @PlayerModuleDecorator()
@@ -11,7 +11,7 @@ export class TowerInventory implements OnReplicaCreate {
     private content: (TowerConfig | undefined)[] = [];
 
     public GetContent() {
-        return this.content; 
+        return this.content;
     }
 
     public GetTower(index: number) {
@@ -31,7 +31,7 @@ export class TowerInventory implements OnReplicaCreate {
         const config = Dependency(GameService).GetConfig();
 
         for (const i of $range(1, config.CountTowerSlots)) {
-            const towerName = replica.Data.Profile.Towers[i-1];
+            const towerName = replica.Data.Profile.Towers[i - 1];
             if (!towerName) continue;
 
             const tower = Tower.GetTowerConfigByName(towerName);

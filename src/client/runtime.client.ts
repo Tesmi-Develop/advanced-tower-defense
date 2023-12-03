@@ -1,6 +1,6 @@
 import { Flamework } from "@flamework/core";
 import { Enemy } from "shared/Classes/Enemy";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 
 if (!game.IsLoaded()) {
     game.Loaded.Wait();

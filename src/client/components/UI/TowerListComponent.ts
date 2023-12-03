@@ -1,20 +1,20 @@
 import { Component, BaseComponent } from "@flamework/components";
 import { PlacingTower } from "client/controllers/PlacingTower";
 import { OnReplicaCreated, PlayerController } from "client/controllers/PlayerController";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 import { PlayerReplica } from "Types/Data/Replica";
 import { TowerConfig } from "Types/Tower/TowerConfig";
 
 const keycodeIndex = new Map<Enum.KeyCode, number>()
-	.set(Enum.KeyCode.One, 1)
-	.set(Enum.KeyCode.Two, 2)
-	.set(Enum.KeyCode.Three, 3)
-	.set(Enum.KeyCode.Four, 4)
-	.set(Enum.KeyCode.Five, 5)
-	.set(Enum.KeyCode.Six, 6)
-	.set(Enum.KeyCode.Seven, 7)
-	.set(Enum.KeyCode.Eight, 8)
-	.set(Enum.KeyCode.Nine, 9);
+    .set(Enum.KeyCode.One, 1)
+    .set(Enum.KeyCode.Two, 2)
+    .set(Enum.KeyCode.Three, 3)
+    .set(Enum.KeyCode.Four, 4)
+    .set(Enum.KeyCode.Five, 5)
+    .set(Enum.KeyCode.Six, 6)
+    .set(Enum.KeyCode.Seven, 7)
+    .set(Enum.KeyCode.Eight, 8)
+    .set(Enum.KeyCode.Nine, 9);
 
 @Component({})
 export class TowerListComponent extends BaseComponent<{}, PlayerGui['Main']['Towers']> implements OnReplicaCreated {

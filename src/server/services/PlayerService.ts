@@ -6,13 +6,13 @@ import { PlayerComponent } from "server/components/PlayerComponent";
 import { GameService } from "./GameService";
 import { Functions } from "server/network";
 import Collision from "shared/Collisions";
-import { Tower } from "shared/Classes/Tower";
+import { Tower } from "shared/Classes/Tower/Tower";
 
 @Service({})
 export class PlayerService implements OnStart, OnInit {
     public readonly OnPlayerAdded = new Signal<(player: PlayerComponent) => void>();
     public readonly OnPlayerRemoved = new Signal<(player: PlayerComponent) => void>();
-    constructor(private components: Components, private gameService: GameService) {}
+    constructor(private components: Components, private gameService: GameService) { }
 
     onInit() {
         Players.PlayerAdded.Connect((player) => {
@@ -32,7 +32,7 @@ export class PlayerService implements OnStart, OnInit {
 
     private generateRaycastFilter() {
         const blacklist: Instance[] = [];
-        
+
         CollectionService.GetTagged(Collision.Tower).forEach((value) => {
             blacklist.push(value);
         });
@@ -71,7 +71,7 @@ export class PlayerService implements OnStart, OnInit {
             const isHaveTag = raycastResut.Instance.HasTag(tag);
             if (!isHaveTag) return false;
 
-            const amount = tower.Price;
+            const amount = tower.Levels[0].Price;
             if (!gameComponent.HasMoney(amount)) return false;
 
             gameComponent.TakeMoney(amount);

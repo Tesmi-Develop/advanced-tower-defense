@@ -13,6 +13,7 @@ import type { EnemyComponent } from "client/components/EnemyComponent";
 import Maid from "@rbxts/maid";
 import { Components } from "@flamework/components";
 import Signal from "@rbxts/rbx-better-signal";
+import { AnimatorComponent } from "./AnimatorComponent";
 
 export interface IEnemyConfig {
     Name: string;
@@ -23,7 +24,6 @@ export interface IEnemyConfig {
 }
 
 const TEST_NODES = Workspace.FindFirstChild('Map')!.FindFirstChild('Path')!;
-type Returned<T> = T extends Animation ? AnimationTrack : undefined
 
 const createPart = (point: Vector3) => {
 	const part = new Instance('Part', Workspace)
@@ -34,13 +34,14 @@ const createPart = (point: Vector3) => {
 	return part
 }
 
-@SharedClass()
+@SharedClass({
+    ClientMethodInitName: 'InitClient'
+})
 export class Enemy extends Damageable {
     public static readonly OnDiedEnemy = new Signal<(enemy: Enemy) => void>();
     public static readonly Enemies = new Set<Enemy>();
     
     private config: IEnemyConfig;
-    private moveVelocity = new Vector3(0, 0, 0);
 
     @NonSyncProperty()
     private movingCancel?: Callback;
@@ -54,12 +55,10 @@ export class Enemy extends Damageable {
     private lookCFrame = new CFrame();
     private lookVector = new Vector3(0, 0, 0);
     private model!: Model;
-    private currentAnimation?: Animation;
     private aniamtionController!: AnimationController;
+    private animatorComponent!: AnimatorComponent;
 
     private maid = new Maid();
-    
-    private loadedAnimations = new Map<Animation, AnimationTrack>();
 
     public static StaticInitClient() {
         RunService.RenderStepped.Connect(() => {
@@ -87,6 +86,22 @@ export class Enemy extends Damageable {
         this.initNodes();
     }
 
+    public GetNodes() {
+        return this.nodes;
+    }
+
+    public GetNode() {
+        return this.nodes[this.nodeIndex];
+    }
+
+    public GetNodeindex() {
+        return this.nodeIndex;
+    }
+
+    public GetPosition() {
+        return this.position;
+    }
+
     public GetConfig() {
         return this.config;
     }
@@ -103,45 +118,6 @@ export class Enemy extends Damageable {
         RunService.Heartbeat.Connect(() => {
             EnemyPart.PivotTo(new CFrame(this.position).mul(CFrame.Angles(0, math.rad(this.rotation), 0)));
         });
-    }
-
-    public PlayAnimation(animation: Animation, speed?: number) {
-        let track = this.loadedAnimations.get(animation);
-
-        if (!track) {
-            const animator = this.aniamtionController.FindFirstChildOfClass('Animator') || new Instance('Animator', this.aniamtionController);
-
-            track = animator.LoadAnimation(animation);
-            this.loadedAnimations.set(animation, track);
-        }
-
-        if (track.IsPlaying) return track;
-        track.Play();
-        track.AdjustSpeed(speed);
-
-        return track;
-    }
-
-    public ChangeAnimation<T extends Animation | undefined>(animation?: T, speed?: number): Returned<T> {
-        const oldAnimation = this.currentAnimation;
-        this.currentAnimation = animation;
-
-        if (oldAnimation) {
-            this.StopAnimation(oldAnimation);
-        }
-
-        if (this.currentAnimation) {
-            return this.PlayAnimation(this.currentAnimation, speed) as Returned<T>;
-        }
-
-        return undefined as Returned<T>;
-    }
-
-    public StopAnimation(animation: Animation) {
-        const track = this.loadedAnimations.get(animation);
-        if (!track) return;
-
-        track.Stop();
     }
 
     private initCollision() {
@@ -174,7 +150,7 @@ export class Enemy extends Damageable {
 
     @OnlyClient
     private moveToClient() {
-        this.ChangeAnimation(this.config.WalkAnimation);
+        this.animatorComponent.ChangeAnimation(this.config.WalkAnimation);
     }
 
     @SharedMethod()
@@ -324,18 +300,14 @@ export class Enemy extends Damageable {
         this.damageBase();
     }
 
-    private initHeartbeat() {
-        RunService.Heartbeat.Connect((dt) => {
-            const nextPosition = this.position.add(this.moveVelocity.mul(dt));
-            this.position = nextPosition;
-        });
-    }
-
     public Destroy() {
+        super.Destroy();
+
         if (RunService.IsClient()) {
             this.movingCancel?.();
             this.model.Destroy();
         }
+        
         this.maid.DoCleaning();
     }
 
@@ -357,16 +329,30 @@ export class Enemy extends Damageable {
         this.maid.GiveTask(() => this.enemyComponent.destroy());
     }
 
+    private initAnimator() {
+        const animator = this.aniamtionController.FindFirstChildOfClass('Animator') || new Instance('Animator', this.aniamtionController);
+        this.animatorComponent = new AnimatorComponent(animator);
+    }
+
+    @ClientMethod()
+    private syncHealth(health: number) {
+        this.SetHealth(health);
+    }
+
     @Spawn
     public Init() {
         Enemy.addEnemy(this);
-        this.initHeartbeat();
         this.initMoving();
+
+        this.OnChangeHealth.Connect((health) => {
+            this.syncHealth(health);
+        })
     }
 
     public InitClient() {
         Enemy.addEnemy(this);
         this.initModel();
+        this.initAnimator();
         this.initComponent();
         this.moveTo(this.nodeIndex);
     }
